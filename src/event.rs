@@ -6,13 +6,14 @@ use std::fmt;
 pub trait DomainEvent:
     Serialize + DeserializeOwned + Clone + PartialEq + fmt::Debug + Sync + Send
 {
+    type Aggregate;
     /// To get event name, maybe used for upcasting
     fn event_type(&self) -> String;
 
     /// To get event version, maybe used for upcasting
     fn event_version(&self) -> String;
 
-    fn apply(&self, agg: &mut impl Aggregate);
+    fn apply(&self, aggregate: &mut Self::Aggregate);
 }
 
 /// `EventWrapper` is to wrap an event with its relavent information

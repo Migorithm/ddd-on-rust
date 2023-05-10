@@ -10,6 +10,8 @@ pub enum AggregateError {
     UnexpectedError(Box<AnyError>),
 }
 
+impl error::Error for AggregateError {}
+
 impl Display for AggregateError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {

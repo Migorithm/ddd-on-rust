@@ -7,3 +7,6 @@ mod aggregate;
 mod error;
 mod event;
 mod repository;
+
+#[doc(hidden)]
+pub mod doc;
