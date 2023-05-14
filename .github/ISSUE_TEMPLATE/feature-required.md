@@ -2,7 +2,7 @@
 name: Feature Required
 about: To feature requirements for this library
 title: "[FEATURE]"
-labels: 'impl'
+labels: ''
 assignees: ''
 
 ---
