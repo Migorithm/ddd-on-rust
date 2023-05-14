@@ -9,3 +9,4 @@ edition = "2021"
 serde={version="*",features=["derive"]}
 async-trait = "*"
 tokio = {version="*",features=["macros","sync","rt"]}
+uuid = {version="*",features=["v4"]}

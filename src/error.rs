@@ -8,6 +8,7 @@ pub enum AggregateError {
     DatabaseConnectionError(Box<AnyError>),
     DeserializationError(Box<AnyError>),
     UnexpectedError(Box<AnyError>),
+    CommandNotConvertible,
 }
 
 impl error::Error for AggregateError {}
@@ -15,10 +16,11 @@ impl error::Error for AggregateError {}
 impl Display for AggregateError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            AggregateError::AggregateConflict => write!(f, "Aggregate Conflict"),
+            AggregateError::AggregateConflict => write!(f, "AggregateConflict"),
             AggregateError::DatabaseConnectionError(res) => write!(f, "{}", res),
             AggregateError::DeserializationError(res) => write!(f, "{}", res),
             AggregateError::UnexpectedError(res) => write!(f, "{}", res),
+            AggregateError::CommandNotConvertible => write!(f, "CommandNotConvertible"),
         }
     }
 }

@@ -5,27 +5,35 @@ use crate::DomainEvent;
 
 #[async_trait]
 pub trait Aggregate: Default + Serialize + DeserializeOwned + Sync + Send {
-    type Command;
-    type Event: DomainEvent;
+    type Command: Send;
+    type Event: DomainEvent<Self>;
     type Error: std::error::Error;
     type Services: Send + Sync;
 
     /// Aggregate type is identifier for this aggregate
     fn aggregate_type() -> String;
 
+    fn aggregate_version(&self) -> String;
+
     /// Execute command on this aggregate
     /// The result is either vector of events or error
     async fn execute(
-        &self,
+        &mut self,
         command: Self::Command,
-        service: &Self::Services,
-    ) -> Result<Vec<Self::Event>, Self::Error>;
+        _service: &Self::Services,
+    ) -> Result<(), Self::Error> {
+        let event = Self::convert_command(command)?;
+        self.trigger(event);
+        Ok(())
+    }
 
-    /// To update aggregate's state
-    /// ```rust
-    /// fn apply(&mut self, event:Self::Event){    
-    ///     event.apply(self)    
-    /// }
-    /// ```
-    fn apply(&mut self, event: Self::Event);
+    fn convert_command(command: Self::Command) -> Result<Self::Event, Self::Error>;
+
+    /// Trigger domain event of given type
+    fn trigger(&mut self, mut event: <Self as crate::aggregate::Aggregate>::Event) {
+        event.mutate(Some(self));
+    }
+
+    fn create(command: Self::Command)->Self;
+
 }
