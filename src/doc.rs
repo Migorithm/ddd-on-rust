@@ -132,7 +132,6 @@ pub struct TransactionService;
 
 #[cfg(test)]
 mod doc_tests {
-    use std::intrinsics::assert_zero_valid;
 
     use super::*;
 
@@ -158,7 +157,6 @@ mod doc_tests {
         let cmd = create_cmd_helper();
         let transaction = Transaction::create(cmd);
         println!("{:?}", transaction);
-        
     }
 
     #[tokio::test]

@@ -38,5 +38,4 @@ pub trait Aggregate: Default + Serialize + DeserializeOwned + Sync + Send {
 
     //TODO Versioning
     //TODO Collecting Event
-
 }
