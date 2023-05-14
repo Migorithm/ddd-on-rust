@@ -22,18 +22,21 @@ pub trait Aggregate: Default + Serialize + DeserializeOwned + Sync + Send {
         command: Self::Command,
         _service: &Self::Services,
     ) -> Result<(), Self::Error> {
-        let event = Self::convert_command(command)?;
+        let event = Self::convert_command(command);
         self.trigger(event);
         Ok(())
     }
 
-    fn convert_command(command: Self::Command) -> Result<Self::Event, Self::Error>;
+    fn convert_command(command: Self::Command) -> Self::Event;
 
     /// Trigger domain event of given type
-    fn trigger(&mut self, mut event: <Self as crate::aggregate::Aggregate>::Event) {
+    fn trigger(&mut self, event: <Self as crate::aggregate::Aggregate>::Event) {
         event.mutate(Some(self));
     }
 
-    fn create(command: Self::Command)->Self;
+    fn create(command: Self::Command) -> Option<Self>;
+
+    //TODO Versioning
+    //TODO Collecting Event
 
 }

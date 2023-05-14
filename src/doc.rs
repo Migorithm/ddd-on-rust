@@ -15,16 +15,19 @@ pub struct Item {
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Clone)]
 pub enum TransactionEvent {
     PurchaseMade(Vec<Item>),
-    CancellationRequested{transaction_id:String,product_id:String},
-    FullCancellationRequested
+    CancellationRequested {
+        transaction_id: String,
+        product_id: String,
+    },
+    FullCancellationRequested,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 pub enum TransactionCommand {
     MakePurchase(Vec<Item>),
-    RequestCancellation{
-        transaction_id:String,
-        product_id:String
+    RequestCancellation {
+        transaction_id: String,
+        product_id: String,
     },
 }
 
@@ -32,7 +35,10 @@ impl DomainEvent<Transaction> for TransactionEvent {
     fn event_type(&self) -> String {
         match self {
             Self::PurchaseMade(_) => "PurchaseMade".to_string(),
-            Self::CancellationRequested{transaction_id,product_id} => "CancellationRequested".to_string(),
+            Self::CancellationRequested {
+                transaction_id: _,
+                product_id: _,
+            } => "CancellationRequested".to_string(),
             Self::FullCancellationRequested => "FullCancellationRequested".to_string(),
         }
     }
@@ -41,18 +47,37 @@ impl DomainEvent<Transaction> for TransactionEvent {
         "1.0.0".to_string()
     }
 
-    fn apply(&mut self, aggregate: &mut Transaction) {
+    fn apply(&self, aggregate: Option<&mut Transaction>) -> Option<Transaction> {
         match self {
-            Self::CancellationRequested{transaction_id,product_id} => {
-                if let Some(idx) = aggregate.items.iter().position(|ele| ele.product_id == product_id.as_ref()) {
-                    let item = aggregate.items.get_mut(idx).unwrap();
+            Self::PurchaseMade(items) => {
+                return Some(Transaction {
+                    id: Uuid::new_v4().to_string(),
+                    pay_amount: items.iter().map(|i| i.sell_price).sum(),
+                    items: items.to_vec(),
+                })
+            }
+            Self::CancellationRequested {
+                transaction_id: _,
+                product_id,
+            } => {
+                let agg = aggregate.unwrap();
+                if let Some(idx) = agg
+                    .items
+                    .iter()
+                    .position(|ele| ele.product_id == product_id.as_ref())
+                {
+                    let item = agg.items.get_mut(idx).unwrap();
                     item.status = "cancelled".to_string();
                 }
+                None
             }
             Self::FullCancellationRequested => {
-                aggregate.items.iter_mut().for_each(|i| i.status = "cancelled".to_string())
+                let agg = aggregate.unwrap();
+                agg.items
+                    .iter_mut()
+                    .for_each(|i| i.status = "cancelled".to_string());
+                None
             }
-            _ => (),
         }
     }
 }
@@ -76,77 +101,79 @@ impl Aggregate for Transaction {
         "Transaction".to_string()
     }
 
-    fn aggregate_version(&self) -> String{
+    fn aggregate_version(&self) -> String {
         self.id.clone()
     }
 
-    fn convert_command(command: Self::Command) -> Result<Self::Event, Self::Error> {
+    fn convert_command(command: Self::Command) -> Self::Event {
         match command {
-            Self::Command::MakePurchase(items) => Ok(Self::Event::PurchaseMade(items)),
-            Self::Command::RequestCancellation{transaction_id,product_id} => {
-                Ok(Self::Event::CancellationRequested{transaction_id,product_id})
-            }
+            Self::Command::MakePurchase(items) => Self::Event::PurchaseMade(items),
+            Self::Command::RequestCancellation {
+                transaction_id,
+                product_id,
+            } => Self::Event::CancellationRequested {
+                transaction_id,
+                product_id,
+            },
         }
     }
-    
-    fn create(command:Self::Command)->Self{
-        if let Self::Command::MakePurchase(items) = command{
-            return Self{
-                id: Uuid::new_v4().to_string(),
-                pay_amount:items.iter().map(|i|i.sell_price).sum(),
-                items
-            }
-        }else{
-            panic!("Only Make Purchase Command is allowed!")
+
+    fn create(command: Self::Command) -> Option<Self> {
+        if let Self::Command::MakePurchase(_) = command {
+            let event = Self::convert_command(command);
+            event.mutate(None)
+        } else {
+            None
         }
-        
     }
 }
 
 pub struct TransactionService;
 
-
 #[cfg(test)]
 mod doc_tests {
+    use std::intrinsics::assert_zero_valid;
+
     use super::*;
 
-    fn create_cmd_helper()->TransactionCommand {
+    fn create_cmd_helper() -> TransactionCommand {
         TransactionCommand::MakePurchase(vec![
-            Item{
+            Item {
                 product_id: "1".to_string(),
                 name: "shoes".to_string(),
                 sell_price: 30000,
-                status:"created".to_string()
+                status: "created".to_string(),
             },
-            Item{
+            Item {
                 product_id: "2".to_string(),
                 name: "phone".to_string(),
                 sell_price: 550000,
-                status:"created".to_string()
+                status: "created".to_string(),
             },
-            ])
+        ])
     }
 
     #[test]
-    fn test_create_transaction(){
+    fn test_create_transaction() {
         let cmd = create_cmd_helper();
         let transaction = Transaction::create(cmd);
-        println!("{:?}",transaction);
+        println!("{:?}", transaction);
+        
     }
 
     #[tokio::test]
-    async fn test_cancel_on_item(){
+    async fn test_cancel_on_item() {
         let cmd = create_cmd_helper();
-        let mut transaction = Transaction::create(cmd);
-        let cancel_cmd = TransactionCommand::RequestCancellation{
-            transaction_id:transaction.aggregate_version(),
-            product_id:"1".to_string()
+        let mut transaction = Transaction::create(cmd).expect("Must Be Passed");
+
+        let cancel_cmd = TransactionCommand::RequestCancellation {
+            transaction_id: transaction.aggregate_version(),
+            product_id: "1".to_string(),
         };
         let res = transaction.execute(cancel_cmd, &TransactionService).await;
-        matches!(res,Ok(()));
+        matches!(res, Ok(()));
 
-
-        let item_to_be_canceled = &transaction.items[0] ;
-        assert_eq!(item_to_be_canceled.status,"cancelled".to_string());
+        let item_to_be_canceled = &transaction.items[0];
+        assert_eq!(item_to_be_canceled.status, "cancelled".to_string());
     }
 }

@@ -17,12 +17,12 @@ where
     fn event_version(&self) -> String;
 
     /// To update aggregate's state
-    fn apply(&mut self, aggregate: &mut A);
+    fn apply(&self, aggregate: Option<&mut A>) -> Option<A>;
 
-    fn mutate(&mut self, aggregate: Option<&mut A>) {
-        if let Some(agg) = aggregate {
-            self.apply(agg)
-        }
+    fn mutate(&self, aggregate: Option<&mut A>) -> Option<A> {
+        // TODO implement version control
+
+        self.apply(aggregate)
     }
 }
 
