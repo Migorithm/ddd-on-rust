@@ -9,6 +9,7 @@ pub enum AggregateError {
     DeserializationError(Box<AnyError>),
     UnexpectedError(Box<AnyError>),
     CommandNotConvertible,
+    NotFound,
 }
 
 impl error::Error for AggregateError {}
@@ -21,6 +22,7 @@ impl Display for AggregateError {
             AggregateError::DeserializationError(res) => write!(f, "{}", res),
             AggregateError::UnexpectedError(res) => write!(f, "{}", res),
             AggregateError::CommandNotConvertible => write!(f, "CommandNotConvertible"),
+            AggregateError::NotFound => write!(f, "NotFound"),
         }
     }
 }

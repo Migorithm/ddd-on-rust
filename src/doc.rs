@@ -83,7 +83,7 @@ impl DomainEvent<Transaction> for TransactionEvent {
 }
 
 //Tranasction Aggregate
-#[derive(Debug, Default, Serialize, Deserialize)]
+#[derive(Debug, Default, Serialize, Deserialize, Clone, PartialEq, Eq)]
 pub struct Transaction {
     id: String, // Aggregate ID
     items: Vec<Item>,
@@ -133,6 +133,10 @@ pub struct TransactionService;
 #[cfg(test)]
 mod doc_tests {
 
+    use std::collections::HashMap;
+
+    use crate::Repository;
+
     use super::*;
 
     fn create_cmd_helper() -> TransactionCommand {
@@ -173,5 +177,47 @@ mod doc_tests {
 
         let item_to_be_canceled = &transaction.items[0];
         assert_eq!(item_to_be_canceled.status, "cancelled".to_string());
+    }
+
+    #[tokio::test]
+    async fn test_repository() {
+        /// Examplify Repository Pattern
+
+        #[derive(Default)]
+        struct TransactionRepository {
+            conn: HashMap<String, Transaction>,
+        }
+
+        #[async_trait]
+        impl Repository<Transaction> for TransactionRepository {
+            async fn add(&mut self, aggregate: &Transaction) -> Result<String, AggregateError> {
+                self.conn
+                    .entry(aggregate.id.clone())
+                    .or_insert(aggregate.clone());
+                Ok(aggregate.id.clone())
+            }
+
+            /// Load aggregate at current state
+            async fn get(&self, aggregate_id: &str) -> Result<Transaction, AggregateError> {
+                self.conn
+                    .get(aggregate_id)
+                    .map_or(Err(AggregateError::NotFound), |r| Ok(r.clone()))
+            }
+        }
+
+        let mut trx_repo = TransactionRepository::default();
+
+        let cmd = create_cmd_helper();
+        let mut transaction = Transaction::create(cmd).expect("Must Be Passed");
+
+        if let Err(err) = trx_repo.add(&transaction).await {
+            assert_eq!(true, false);
+        }
+
+        if let Ok(trx) = trx_repo.get(&transaction.id).await {
+            assert_eq!(trx, transaction)
+        } else {
+            assert_eq!(true, false);
+        }
     }
 }

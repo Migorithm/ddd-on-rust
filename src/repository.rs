@@ -10,8 +10,8 @@ where
 {
     /// Add aggregate to a session
     /// If underlying db doesn't have the key, then addition gets successful, returning id.
-    async fn add(&mut self, aggregate: &A) -> Result<Option<String>, AggregateError>;
+    async fn add(&mut self, aggregate: &A) -> Result<String, AggregateError>;
 
     /// Load aggregate at current state
-    async fn get(&self, aggregate_id: &str) -> Result<Option<A>, AggregateError>;
+    async fn get(&self, aggregate_id: &str) -> Result<A, AggregateError>;
 }
